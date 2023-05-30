@@ -1,6 +1,6 @@
-﻿//
-// Sample1.cpp
-//
+﻿// ---------------------------------------------------------------------------------------
+// main.cpp
+// ---------------------------------------------------------------------------------------
 
 #ifdef _DEBUG
 #define _CRTDBG_MAP_ALLOC
@@ -29,7 +29,11 @@ int IntTest1 ()
 
 	for (int i = 0; i < 200; i += 2)
 	{
-		t.Remove (i);
+		bool ret = t.Remove (i);
+		if (!ret)
+		{
+			std::cout << "The key " << i << " is does not exist in the tree" << std::endl;
+		}
 	}
 
 	t.Traverse ();
@@ -54,10 +58,28 @@ int IntTest2 ()
 
 	for (int i = 200; i > 0; i-=2)
 	{
-		t.Remove (i);
+		bool ret = t.Remove (i);
+		if (!ret)
+		{
+			std::cout << "The key " << i << " is does not exist in the tree" << std::endl;
+		}
 	}
 
 	t.Traverse ();
+
+	return 0;
+}
+
+int test0 ()
+{
+	BTree<int> t (4);
+
+	for (int i = 1; i <= 72; i++)
+	{
+		t.Insert (i);
+		t.Traverse2 ();
+		std::cout << std::endl << "------------------------------" << std::endl;
+	}
 
 	return 0;
 }
@@ -89,7 +111,7 @@ int test1 ()
 
 int test2 ()
 {
-	BTree<int> t (3);
+	BTree<int> t (2);
 
 	t.Insert (1);
 	t.Insert (3);
@@ -248,7 +270,11 @@ int test4 ()
 		}
 		buf[stringSize] = 0x00;
 		std::string buffer (buf);
-		t.Remove (buffer);
+		bool ret = t.Remove (buffer);
+		if (!ret)
+		{
+			std::cout << "The key " << buffer << " is does not exist in the tree" << std::endl;
+		}
 	}
 
 	t.Traverse ();
@@ -289,12 +315,14 @@ int main ()
 
 	_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 
-	IntTest1 ();
-	IntTest2 ();
-	test1 ();
-	test2 ();
-	test3 (5, -500, 500, 1000);
-	test4 ();
+	//IntTest1 ();
+	//IntTest2 ();
+	test0 ();
+	//test1 ();
+	//test2 ();
+	//test3 (3, 1, 30, 30);
+	//test4 ();
+	//test5 ();
 
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 	_CrtDumpMemoryLeaks();

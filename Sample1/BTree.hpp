@@ -8,6 +8,9 @@
 
 #include <iostream>
 
+#include <iomanip>
+static int indent = 0;
+
 template<class T>
 class BTree;
 
@@ -20,12 +23,12 @@ public:
 	//! @param leaf 葉の場合(true) 枝の場合(false)
 	BTreeNode (int degree, bool leaf)
 	{
-		_minDegree = degree;
+		_degree = degree;
 		_isLeaf = leaf;
 
 		// 事前に_keysと_childの領域を確保します。
-		_keys = new T[2 * _minDegree - 1];
-		_childs = new BTreeNode<T> *[2 * _minDegree];
+		_keys = new T[2 * _degree - 1];
+		_childs = new BTreeNode<T> *[2 * _degree];
 
 		// keysの格納数を初期化します。
 		_number = 0;
@@ -36,6 +39,31 @@ public:
 	{
 		delete[] _keys;
 		delete[] _childs;
+	}
+
+	//! @brief 下層のノードを削除します。
+	//! @return 下層は葉か否か。
+	bool clean ()
+	{
+		bool ret = false;
+
+		if (_isLeaf == false)
+		{
+			for (int i = 0; i <= _number; i++)
+			{
+				ret = _childs[i]->clean ();
+				if (ret == true)
+				{
+					delete _childs[i];
+				}
+			}
+		}
+		else
+		{
+			ret = true;
+		}
+
+		return ret;
 	}
 
 	//! @brief B-Treeの内容をstd::coutに列挙します。
@@ -49,13 +77,45 @@ public:
 			// If this is not leaf, then before printing key[i],
 			// traverse the subtree rooted with _childs[i].
 			if (_isLeaf == false)
+			{
 				_childs[i]->traverse ();
-			std::cout << " " << _keys[i];
+			}
+			std::cout << std::setw(3) << _keys[i];
 		}
 
 		// Print the subtree rooted with last child
 		if (_isLeaf == false)
+		{
 			_childs[i]->traverse ();
+		}
+	}
+
+	void traverse2 ()
+	{
+		int i;
+		for (i = 0; i < _number; i++)
+		{
+			if (_isLeaf == false)
+			{
+				std::cout << std::endl;
+				indent += 2;
+				_childs[i]->traverse2 ();
+				indent -= 2;
+			}
+			for (int j = 0; j < indent; j++) std::cout << " ";
+			if (_isLeaf)
+				std::cout << std::setw(3) << _keys[i];
+			else
+				std::cout << "N[" << _keys[i] << "]";
+		}
+		std::cout << std::endl;
+
+		if (_isLeaf == false)
+		{
+			indent += 2;
+			_childs[i]->traverse2 ();
+			indent -= 2;
+		}
 	}
 
 	//! @brief B-Treeから指定のキーを検索します。
@@ -83,6 +143,7 @@ public:
 	//! @brief keyが格納されているインデックスを検索します。
 	//! @param key 検索キー
 	//! @return B-Treeの格納位置
+	//! @todo search()の中にもあって重複している。
 	int findKey (T key)
 	{
 		int idx = 0;
@@ -122,7 +183,7 @@ public:
 				i--;
 
 			// See if the found child is full
-			if (_childs[i + 1]->_number == 2 * _minDegree - 1)
+			if (_childs[i + 1]->_number == 2 * _degree - 1)
 			{
 				// If the child is full, then split it
 				splitChild (i + 1, _childs[i + 1]);
@@ -144,24 +205,24 @@ public:
 	{
 		// Create a new node which is going to store (t-1) keys
 		// of y
-		BTreeNode<T>* z = new BTreeNode<T> (node->_minDegree, node->_isLeaf);
-		z->_number = _minDegree - 1;
+		BTreeNode<T>* z = new BTreeNode<T> (node->_degree, node->_isLeaf);
+		z->_number = _degree - 1;
 
 		// Copy the last (t-1) keys of y to z
-		for (int j = 0; j < _minDegree - 1; j++)
-			z->_keys[j] = node->_keys[j + _minDegree];
+		for (int j = 0; j < _degree - 1; j++)
+			z->_keys[j] = node->_keys[j + _degree];
 
 		// Copy the last t children of y to z
 		if (node->_isLeaf == false)
 		{
-			for (int j = 0; j < _minDegree; j++)
+			for (int j = 0; j < _degree; j++)
 			{
-				z->_childs[j] = node->_childs[j + _minDegree];
+				z->_childs[j] = node->_childs[j + _degree];
 			}
 		}
 
 		// Reduce the number of keys in y
-		node->_number = _minDegree - 1;
+		node->_number = _degree - 1;
 
 		// Since this node is going to have a new child,
 		// create space of new child
@@ -179,7 +240,7 @@ public:
 			_keys[j + 1] = _keys[j];
 
 		// Copy the middle key of y to this node
-		_keys[idx] = node->_keys[_minDegree - 1];
+		_keys[idx] = node->_keys[_degree - 1];
 
 		// Increment count of keys in this node
 		_number = _number + 1;
@@ -210,7 +271,6 @@ public:
 			// If this node is a leaf node, then the key is not present in tree
 			if (_isLeaf)
 			{
-				std::cout << "The key " << key << " is does not exist in the tree" << std::endl;
 				return false;
 			}
 
@@ -221,7 +281,7 @@ public:
 
 			// If the child where the key is supposed to exist has less that t keys,
 			// we fill that child
-			if (_childs[idx]->_number < _minDegree)
+			if (_childs[idx]->_number < _degree)
 				fill (idx);
 
 			// If the last child has been merged, it must have merged with the previous
@@ -259,7 +319,7 @@ public:
 		// find the predecessor 'pred' of k in the subtree rooted at
 		// _childs[idx]. Replace k by pred. Recursively delete pred
 		// in _childs[idx]
-		if (_childs[idx]->_number >= _minDegree)
+		if (_childs[idx]->_number >= _degree)
 		{
 			T pred = getPred (idx);
 			_keys[idx] = pred;
@@ -271,7 +331,7 @@ public:
 		// the subtree rooted at _childs[idx+1]
 		// Replace k by succ
 		// Recursively delete succ in _childs[idx+1]
-		else if (_childs[idx + 1]->_number >= _minDegree)
+		else if (_childs[idx + 1]->_number >= _degree)
 		{
 			T succ = getSucc (idx);
 			_keys[idx] = succ;
@@ -321,12 +381,12 @@ public:
 	{
 		// If the previous _childs[idx-1] has more than t-1 keys, borrow a key
 		// from that child
-		if (idx != 0 && _childs[idx - 1]->_number >= _minDegree)
+		if (idx != 0 && _childs[idx - 1]->_number >= _degree)
 			borrowFromPrev (idx);
 
 		// If the next _childs[idx+1] has more than t-1 keys, borrow a key
 		// from that child
-		else if (idx != _number && _childs[idx + 1]->_number >= _minDegree)
+		else if (idx != _number && _childs[idx + 1]->_number >= _degree)
 			borrowFromNext (idx);
 
 		// Merge _childs[idx] with its sibling
@@ -420,17 +480,17 @@ public:
 
 		// Pulling a key from the current node and inserting it into (t-1)th
 		// position of _childs[idx]
-		child->_keys[_minDegree - 1] = _keys[idx];
+		child->_keys[_degree - 1] = _keys[idx];
 
 		// Copying the keys from _childs[idx+1] to _childs[idx] at the end
 		for (int i = 0; i < sibling->_number; ++i)
-			child->_keys[i + _minDegree] = sibling->_keys[i];
+			child->_keys[i + _degree] = sibling->_keys[i];
 
 		// Copying the child pointers from _childs[idx+1] to _childs[idx]
 		if (!child->_isLeaf)
 		{
 			for (int i = 0; i <= sibling->_number; ++i)
-				child->_childs[i + _minDegree] = sibling->_childs[i];
+				child->_childs[i + _degree] = sibling->_childs[i];
 		}
 
 		// Moving all keys after idx in the current node one step before -
@@ -459,7 +519,7 @@ private:
 	BTreeNode () = delete;
 
 	T* _keys;               //! キーの格納領域
-	int _minDegree;	        //! このノードに格納できるサイズ
+	int _degree;	        //! このノードに格納できるサイズ
 	BTreeNode<T>** _childs; //! 子ノードの格納領域
 	int _number;            //! 現在のキーの格納数
 	bool _isLeaf;           //! このノードが枝か葉か
@@ -474,20 +534,25 @@ public:
 	BTree (int degree)
 	{
 		_root = nullptr;
-		_minDegree = degree;
+		_degree = degree;
 	}
 
 	//! @brief デストラクタ
 	~BTree ()
 	{
 		RemoveAll ();
-		delete _root;
 	}
 
 	//! @brief B-Treeの内容をstd::coutに列挙します。
 	void Traverse ()
 	{
-		if (_root != nullptr) _root->traverse ();
+		if (_root != nullptr) _root->traverse2 ();
+	}
+
+	//! @brief B-Treeの内容をstd::coutに列挙します。
+	void Traverse2 ()
+	{
+		if (_root != nullptr) _root->traverse2 ();
 	}
 
 	//! @brief B-Treeから指定のキーを検索します。
@@ -506,7 +571,7 @@ public:
 		if (_root == nullptr)
 		{
 			// Allocate memory for root
-			_root = new BTreeNode<T> (_minDegree, true);
+			_root = new BTreeNode<T> (_degree, true);
 			_root->_keys[0] = key; // Insert key
 			_root->_number = 1; // Update number of keys in root
 		}
@@ -514,10 +579,10 @@ public:
 		else
 		{
 			// If root is full, then tree grows in height
-			if (_root->_number == 2 * _minDegree - 1)
+			if (_root->_number == 2 * _degree - 1)
 			{
 				// Allocate memory for new root
-				BTreeNode<T>* s = new BTreeNode<T> (_minDegree, false);
+				BTreeNode<T>* s = new BTreeNode<T> (_degree, false);
 				// Make old root as child of new root
 				s->_childs[0] = _root;
 
@@ -548,7 +613,6 @@ public:
 	{
 		if (!_root)
 		{
-			std::cout << "The tree is empty" << std::endl;
 			return false;
 		}
 
@@ -575,20 +639,17 @@ public:
 	//! @brief 格納されたキーをすべて削除します。
 	void RemoveAll ()
 	{
-		while (_root != nullptr)
+		if(_root != nullptr)
 		{
-			T key;
-
 			if (_root->_isLeaf)
 			{
-				key = _root->_keys[0];
+				delete _root;
 			}
 			else
 			{
-				key = _root->_childs[0]->_keys[0];
+				_root->clean ();
+				delete _root;
 			}
-
-			if (!Remove (key)) break;
 		}
 	}
 
@@ -596,5 +657,5 @@ private:
 	BTree () = delete;
 
 	BTreeNode<T>* _root; // ルートノード
-	int _minDegree;      // 各ノードに格納できるサイズ
+	int _degree;      // 各ノードに格納できるサイズ
 };
